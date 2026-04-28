@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+.env
+.env.*
+!.env.example
+npm-debug.log
+yarn-error.log
+.DS_Store
+*.log
+.git
+Dockerfile
+docker-compose.yml
