@@ -29,18 +29,23 @@ export class OllamaProvider implements IAiProvider {
   }
 
   async generateSelectors(html: string): Promise<Record<string, string>> {
+    const prompt = buildGeneratePrompt(html);
+    console.log('[Ollama] Prompt length (chars):', prompt.length, '| First 300:', prompt.slice(0, 300));
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
         { role: 'system', content: SCRAPER_SYSTEM_PROMPT },
-        { role: 'user', content: buildGeneratePrompt(html) },
+        { role: 'user', content: prompt },
       ],
-      max_tokens: 8192,
+      max_tokens: 1024,
+      temperature: 0,
+      response_format: { type: 'json_object' },
       // @ts-ignore — Ollama-specific: disable reasoning tokens on thinking models
       think: false,
     });
 
     const raw = response.choices[0]?.message?.content ?? '{}';
+    console.log('[Ollama] Raw generateSelectors (500 chars):', raw.slice(0, 500));
     return cleanJsonResponse(raw);
   }
 
@@ -55,8 +60,10 @@ export class OllamaProvider implements IAiProvider {
         { role: 'system', content: SCRAPER_SYSTEM_PROMPT },
         { role: 'user', content: buildUpdatePrompt(html, previous, failed) },
       ],
-      max_tokens: 8192,
-      // @ts-ignore — Ollama-specific: disable reasoning tokens on thinking models
+      max_tokens: 1024,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      // @ts-ignore
       think: false,
     });
 

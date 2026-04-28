@@ -23,6 +23,12 @@ export class ScrapeJob {
   @Column()
   domain: string;
 
+  @Column({ default: 'product' })
+  pageType: string;
+
+  @Column({ nullable: true })
+  userId: number;
+
   @Column({
     type: 'enum',
     enum: ScrapeJobStatus,

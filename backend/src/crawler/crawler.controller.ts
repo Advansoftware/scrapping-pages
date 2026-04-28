@@ -32,56 +32,23 @@ class ScrapeDto {
 @ApiTags('Crawler')
 @Controller('crawler')
 export class CrawlerController {
-  constructor(private readonly crawlerService: CrawlerService) {}
+  constructor(private readonly crawlerService: CrawlerService) { }
 
   @Post('scrape')
   @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiSecurity('api-key')
   @ApiOperation({
-    summary: 'Scrape a product URL',
-    description: `Extracts product data from any URL using AI-generated CSS selectors.
-
-**Authentication:** Accepts either:
-- \`Authorization: Bearer <jwt>\` — from the admin frontend
-- \`X-API-Key: <token>\` — for service-to-service calls (e.g. from licita-sync)
-
-**How it works:**
-1. Opens the URL with a headless browser (Puppeteer + Stealth)
-2. If the domain is new → calls the user's configured AI provider to generate CSS selectors and saves them to the DB
-3. If the domain is known → uses saved selectors (no AI call)
-4. If selectors fail on critical fields → AI regenerates and retries automatically
-5. All jobs are logged for reporting
-
-**Requirements:** The calling user must have an AI provider configured via \`PUT /users/me/ai-config\`.`,
+    summary: 'Enqueue a product scraping job',
+    description: `Enqueues an async scraping job. Returns a jobId immediately.
+Poll GET /crawler/jobs/:id to check status and retrieve the result.`,
   })
   @ApiBody({ type: ScrapeDto })
   @ApiResponse({
     status: 200,
-    description: 'Scraping result',
-    schema: {
-      example: {
-        success: true,
-        domain: 'amazon.com.br',
-        selectorsUpdated: false,
-        durationMs: 4200,
-        data: {
-          title: 'Apple AirPods Pro (2nd generation)',
-          salePrice: 'R$ 1.499,00',
-          originalPrice: 'R$ 1.899,00',
-          image: 'https://m.media-amazon.com/images/I/...',
-          hasCoupon: false,
-          couponText: null,
-          freeShipping: true,
-          shippingText: 'Frete GRÁTIS',
-          hasPixPrice: true,
-          installments: { times: '12', value: '124,92' },
-        },
-      },
-    },
+    description: 'Job enqueued',
+    schema: { example: { jobId: 42, status: 'pending', queuePosition: 0 } },
   })
-  @ApiResponse({ status: 400, description: 'Invalid URL or AI config not set' })
-  @ApiResponse({ status: 401, description: 'Missing or invalid credentials' })
   async scrapeProduct(
     @Body() body: { url: string },
     @CurrentUser() user: RequestUser,
@@ -91,14 +58,24 @@ export class CrawlerController {
     return this.crawlerService.scrapeProduct(body.url, user.id);
   }
 
+  @Post('preview')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Test existing selectors on a URL (no AI, no job record)',
+    description: 'Applies the currently saved selectors for the domain+pageType and returns the extracted data synchronously. Does NOT create a job history entry.',
+  })
+  @ApiBody({ type: ScrapeDto })
+  async previewScrape(@Body() body: { url: string }) {
+    if (!body.url) throw new BadRequestException('URL é obrigatória');
+    try { new URL(body.url); } catch { throw new BadRequestException('URL inválida'); }
+    return this.crawlerService.previewScrape(body.url);
+  }
+
   @Get('stats')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Aggregated scraping statistics' })
-  @ApiResponse({
-    status: 200,
-    schema: { example: { total: 150, success: 140, failed: 10, updated: 5, domains: 23 } },
-  })
   async getStats() {
     return this.crawlerService.getJobStats();
   }
@@ -106,10 +83,7 @@ export class CrawlerController {
   @Get('configs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({
-    summary: 'List saved domain configurations',
-    description: 'Returns paginated list of AI-generated CSS selector configs per domain.',
-  })
+  @ApiOperation({ summary: 'List saved domain configurations' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   async listConfigs(
@@ -122,7 +96,7 @@ export class CrawlerController {
   @Get('configs/:domain')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Get CSS selector config for a specific domain' })
+  @ApiOperation({ summary: 'Get all page-type configs for a domain' })
   @ApiParam({ name: 'domain', example: 'amazon.com.br' })
   async getConfig(@Param('domain') domain: string) {
     return this.crawlerService.getConfig(domain);
@@ -131,13 +105,14 @@ export class CrawlerController {
   @Delete('configs/:domain')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({
-    summary: 'Delete domain config',
-    description: 'Removes the saved selectors for a domain. On the next scrape request the AI will regenerate them.',
-  })
+  @ApiOperation({ summary: 'Delete domain config (all page types or one)' })
   @ApiParam({ name: 'domain', example: 'amazon.com.br' })
-  async deleteConfig(@Param('domain') domain: string) {
-    return this.crawlerService.deleteConfig(domain);
+  @ApiQuery({ name: 'pageType', required: false, example: 'product' })
+  async deleteConfig(
+    @Param('domain') domain: string,
+    @Query('pageType') pageType?: string,
+  ) {
+    return this.crawlerService.deleteConfig(domain, pageType);
   }
 
   @Get('jobs')
@@ -146,12 +121,34 @@ export class CrawlerController {
   @ApiOperation({ summary: 'List scraping job history' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiQuery({ name: 'domain', required: false, type: String, example: 'amazon.com.br' })
+  @ApiQuery({ name: 'domain', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, type: String })
   async listJobs(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('domain') domain?: string,
+    @Query('status') status?: string,
   ) {
-    return this.crawlerService.listJobs(+page, +limit, domain);
+    return this.crawlerService.listJobs(+page, +limit, domain, status);
+  }
+
+  @Get('jobs/:id')
+  @UseGuards(AnyAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiSecurity('api-key')
+  @ApiOperation({ summary: 'Get a single job by ID (for polling)' })
+  @ApiParam({ name: 'id', type: Number })
+  async getJobById(@Param('id') id: string) {
+    return this.crawlerService.getJobById(+id);
+  }
+
+  @Delete('jobs/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Delete a job from history' })
+  @ApiParam({ name: 'id', type: Number })
+  async deleteJob(@Param('id') id: string) {
+    return this.crawlerService.deleteJob(+id);
   }
 }
+

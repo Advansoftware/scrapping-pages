@@ -44,6 +44,7 @@ export class OpenRouterProvider implements IAiProvider {
     });
 
     const raw = response.choices[0]?.message?.content ?? '{}';
+    console.log('[OpenRouter] Raw generateSelectors (500 chars):', raw.slice(0, 500));
     return cleanJsonResponse(raw);
   }
 
@@ -62,6 +63,7 @@ export class OpenRouterProvider implements IAiProvider {
     });
 
     const raw = response.choices[0]?.message?.content ?? '{}';
+    console.log('[OpenRouter] Raw updateSelectors (500 chars):', raw.slice(0, 500));
     return cleanJsonResponse(raw);
   }
 }

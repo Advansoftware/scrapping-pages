@@ -4,15 +4,25 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 
 @Entity('crawler_configs')
+@Unique(['domain', 'pageType'])
 export class CrawlerConfig {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column()
   domain: string;
+
+  /**
+   * Page template type within the domain.
+   * Examples: 'product', 'home', 'listing'
+   * Multiple page types for the same domain each get their own selectors.
+   */
+  @Column({ default: 'product' })
+  pageType: string;
 
   @Column({ type: 'jsonb' })
   selectors: Record<string, string>;

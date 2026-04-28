@@ -17,6 +17,7 @@ const PROVIDERS = [
     ],
     keyPlaceholder: "sk-ant-api03-...",
     needsBaseUrl: false,
+    defaultBaseUrl: "",
     freeTextModel: false,
   },
   {
@@ -26,6 +27,7 @@ const PROVIDERS = [
     models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
     keyPlaceholder: "sk-proj-...",
     needsBaseUrl: false,
+    defaultBaseUrl: "",
     freeTextModel: false,
   },
   {
@@ -35,16 +37,18 @@ const PROVIDERS = [
     models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
     keyPlaceholder: "AIzaSy...",
     needsBaseUrl: false,
+    defaultBaseUrl: "",
     freeTextModel: false,
   },
   {
     id: "openrouter",
-    label: "OpenRouter",
+    label: "OpenRouter (Múltiplos Modelos)",
     description:
       "Gateway para 100+ modelos com uma única chave de API (openrouter.ai).",
     models: [],
     keyPlaceholder: "sk-or-v1-...",
-    needsBaseUrl: false,
+    needsBaseUrl: true,
+    defaultBaseUrl: "https://openrouter.ai/api/v1",
     freeTextModel: true,
   },
   {
@@ -55,6 +59,7 @@ const PROVIDERS = [
     models: [],
     keyPlaceholder: "ollama (qualquer valor)",
     needsBaseUrl: true,
+    defaultBaseUrl: "http://localhost:11434",
     freeTextModel: false,
   },
 ];
@@ -82,10 +87,20 @@ export default function SettingsPage() {
         if (data && data.provider) {
           setCurrent(data);
           setProvider(data.provider);
-          setModel(data.model);
-          if (data.baseUrl) setBaseUrl(data.baseUrl);
+          setModel(data.model || "");
+          if (data.baseUrl) {
+            setBaseUrl(data.baseUrl);
+            if (data.provider === "ollama") {
+              fetchOllamaModels(data.baseUrl);
+            }
+          } else {
+            // Pre-fill default URL for provider
+            const p = PROVIDERS.find((x) => x.id === data.provider);
+            if (p?.defaultBaseUrl) setBaseUrl(p.defaultBaseUrl);
+          }
         }
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedProvider = PROVIDERS.find((p) => p.id === provider)!;
@@ -198,6 +213,11 @@ export default function SettingsPage() {
             onClick={() => {
               setProvider(p.id);
               setModel("");
+              // Pre-fill default base URL when switching provider
+              const def = p.defaultBaseUrl;
+              if (def) setBaseUrl(def);
+              // Auto-fetch Ollama models if switching to ollama
+              if (p.id === "ollama" && baseUrl) fetchOllamaModels(baseUrl);
             }}
             className={`text-left rounded-2xl border p-4 transition-all duration-150 ${
               provider === p.id
@@ -224,26 +244,39 @@ export default function SettingsPage() {
         </h2>
 
         <form onSubmit={handleSave} className="space-y-5">
-          {/* Base URL for Ollama — shown first so models load before user picks */}
+          {/* Base URL — shown for Ollama and OpenRouter */}
           {selectedProvider.needsBaseUrl && (
             <div>
               <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">
-                Base URL do Ollama
+                Base URL
               </label>
               <input
                 type="url"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                onBlur={(e) => fetchOllamaModels(e.target.value)}
+                onBlur={(e) =>
+                  provider === "ollama" && fetchOllamaModels(e.target.value)
+                }
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
               <p className="text-xs text-zinc-600 mt-1.5">
-                Padrão local:{" "}
-                <code className="text-violet-500 font-mono">
-                  http://localhost:11434
-                </code>
-                {" · "}ao sair do campo os modelos instalados são carregados
-                automaticamente.
+                {provider === "ollama" ? (
+                  <>
+                    Padrão local:{" "}
+                    <code className="text-violet-500 font-mono">
+                      http://localhost:11434
+                    </code>
+                    {" · "}ao sair do campo os modelos instalados são carregados
+                    automaticamente.
+                  </>
+                ) : (
+                  <>
+                    URL base da API.{" "}
+                    <code className="text-violet-500 font-mono">
+                      {selectedProvider.defaultBaseUrl}
+                    </code>
+                  </>
+                )}
               </p>
             </div>
           )}
