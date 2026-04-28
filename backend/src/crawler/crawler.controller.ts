@@ -73,16 +73,18 @@ Poll GET /crawler/jobs/:id to check status and retrieve the result.`,
   }
 
   @Get('stats')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('access-token')
+  @ApiSecurity('api-key')
   @ApiOperation({ summary: 'Aggregated scraping statistics' })
   async getStats() {
     return this.crawlerService.getJobStats();
   }
 
   @Get('configs')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('access-token')
+  @ApiSecurity('api-key')
   @ApiOperation({ summary: 'List saved domain configurations' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
@@ -94,8 +96,9 @@ Poll GET /crawler/jobs/:id to check status and retrieve the result.`,
   }
 
   @Get('configs/:domain')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('access-token')
+  @ApiSecurity('api-key')
   @ApiOperation({ summary: 'Get all page-type configs for a domain' })
   @ApiParam({ name: 'domain', example: 'amazon.com.br' })
   async getConfig(@Param('domain') domain: string) {
@@ -116,8 +119,9 @@ Poll GET /crawler/jobs/:id to check status and retrieve the result.`,
   }
 
   @Get('jobs')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AnyAuthGuard)
   @ApiBearerAuth('access-token')
+  @ApiSecurity('api-key')
   @ApiOperation({ summary: 'List scraping job history' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })

@@ -39,7 +39,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-crawler@2024}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
-      FRONTEND_URL: http://localhost:5004
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5004}
       NODE_ENV: production
     extra_hosts:
       - "host.docker.internal:host-gateway"
