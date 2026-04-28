@@ -116,12 +116,16 @@ export class CrawlerService {
         const retryResult = await this._extractData(page, updatedSelectors);
         const duration = Date.now() - startTime;
         await this.jobRepo.save({ ...job, status: ScrapeJobStatus.SUCCESS, result: retryResult, selectorsUpdated: true, durationMs: duration });
+        
+        this.logger.log(`[${domain}] Scraping concluído com sucesso após re-treino da IA. Resultado: ${JSON.stringify(retryResult)}`);
         return { success: true, data: retryResult, domain, selectorsUpdated: true, durationMs: duration };
       }
 
       await this.configRepo.save({ ...config, lastTestedAt: new Date(), failCount: 0 });
       const duration = Date.now() - startTime;
       await this.jobRepo.save({ ...job, status: ScrapeJobStatus.SUCCESS, result, selectorsUpdated: false, durationMs: duration });
+      
+      this.logger.log(`[${domain}] Scraping concluído com sucesso. Resultado: ${JSON.stringify(result)}`);
       return { success: true, data: result, domain, selectorsUpdated: false, durationMs: duration };
 
     } catch (error) {
@@ -130,7 +134,7 @@ export class CrawlerService {
       }
       const duration = Date.now() - startTime;
       await this.jobRepo.save({ ...job, status: ScrapeJobStatus.FAILED, error: error.message, durationMs: duration });
-      this.logger.error(`[${domain}] Scraping falhou: ${error.message}`);
+      this.logger.error(`[${domain}] Scraping falhou: ${error.message}`, error.stack);
       return { success: false, error: error.message, domain, durationMs: duration };
     } finally {
       if (browser) await browser.close();
