@@ -98,7 +98,7 @@ export class UsersController {
       example: {
         anthropic: ['claude-opus-4-5', 'claude-3-7-sonnet-20250219'],
         openai: ['gpt-4o', 'gpt-4o-mini'],
-        google: ['gemini-2.0-flash-exp', 'gemini-1.5-pro-latest'],
+        google: ['gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
         openrouter: ['openai/gpt-4o', 'anthropic/claude-opus-4-5'],
         ollama: ['llama3.2', 'mistral'],
       },
