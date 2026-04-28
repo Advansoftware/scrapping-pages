@@ -405,7 +405,7 @@ export class CrawlerService implements OnModuleInit {
       } catch (err: any) {
         lastError = err;
         if (err.message?.includes('429') && attempt < maxAttempts) {
-          const wait = attempt * 15000; // 15s, 30s
+          const wait = attempt * 60000; // 60s, 120s
           this.logger.warn(`[${domain}/${pageType}] Rate limit (429), aguardando ${wait / 1000}s antes de tentar novamente (${attempt}/${maxAttempts})...`);
           await new Promise((r) => setTimeout(r, wait));
         } else {
@@ -435,7 +435,7 @@ export class CrawlerService implements OnModuleInit {
       } catch (err: any) {
         lastError = err;
         if (err.message?.includes('429') && attempt < maxAttempts) {
-          const wait = attempt * 15000;
+          const wait = attempt * 60000; // 60s, 120s
           this.logger.warn(`[${domain}/${pageType}] Rate limit (429) no update, aguardando ${wait / 1000}s (${attempt}/${maxAttempts})...`);
           await new Promise((r) => setTimeout(r, wait));
         } else {

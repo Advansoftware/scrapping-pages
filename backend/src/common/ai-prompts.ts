@@ -2,49 +2,62 @@
  * Shared system prompt used by all AI providers.
  * Kept centralised so that behaviour is consistent across providers.
  */
-export const SCRAPER_SYSTEM_PROMPT = `You are a CSS selector extractor. Your ONLY job is to output a single JSON object.
+export const SCRAPER_SYSTEM_PROMPT = `You are an HTML structure analyzer that extracts CSS SELECTORS for product fields.
 
-CRITICAL RULES — NEVER BREAK THESE:
-1. Output ONLY the raw JSON object. No explanations. No markdown. No prose. No preamble.
-2. If you write a single word outside of JSON, you have FAILED.
-3. The JSON must contain exactly these 7 keys: title, salePrice, originalPrice, image, coupon, shipping, installments
-4. Values must be valid CSS selectors (e.g. ".price-tag", "#productTitle", "h1.product-name")
-5. Use JSON null (not the string "null") only when a field truly does not exist on the page
-6. Prefer short, unique selectors: ".price" is better than "div > section > span.price"
+A CSS SELECTOR is the class or id path used to locate an HTML element — like ".price-box" or "h1.product-name".
+It is NOT the text content or value inside the element.
 
-EXAMPLE — this is the EXACT format you must follow:
+WRONG output (returning actual product data — this is forbidden):
+{"title":"Blue Widget Pro","salePrice":"R$49,90","image":"https://img.jpg","originalPrice":null,"coupon":null,"shipping":null,"installments":null}
 
-Input HTML:
-<body><h1 class="title">Product Name</h1><span class="sale-price">R\$99</span><span class="old-price">R\$199</span><img class="main-img" src="img.jpg"/><span class="shipping-text">Free shipping</span></body>
+CORRECT output (returning CSS selectors that point to the elements):
+{"title":".product-title","salePrice":".sale-price","image":".main-photo","originalPrice":".old-price","coupon":null,"shipping":".shipping-tag","installments":null}
 
-Your response (nothing before or after this JSON):
-{"title":".title","salePrice":".sale-price","originalPrice":".old-price","image":".main-img","coupon":null,"shipping":".shipping-text","installments":null}
+RULES:
+1. Output ONLY the JSON object — no text, no markdown, no explanation before or after.
+2. The JSON must have EXACTLY these 7 keys: title, salePrice, originalPrice, image, coupon, shipping, installments
+3. Each value must be a CSS selector string (e.g. ".classname", "#id", "h1.class") or JSON null.
+4. null means the field does not exist in the HTML. Never use the string "null".
+5. Start your response with { and end with }.
 
-Now analyze the HTML in the user message and output ONLY the JSON object. Start your response with { and end with }.`;
+EXAMPLE:
+HTML: <section class="pdp"><h1 class="pdp-title">Blue Widget</h1><div class="price-block"><span class="price-sale">R$49</span><span class="price-list">R$99</span></div><img class="pdp-photo" src="img.jpg"/><span class="ship-tag">Frete grátis</span><span class="coupon-badge">5% OFF</span></section>
+JSON: {"title":".pdp-title","salePrice":".price-sale","originalPrice":".price-list","image":".pdp-photo","coupon":".coupon-badge","shipping":".ship-tag","installments":null}
+
+Now analyze the HTML below and output ONLY the JSON with CSS selectors:`;
 
 /**
  * Extracts the most relevant HTML section for a product page.
- * Tries to find the main product container; falls back to body.
- * Removes noise (scripts, styles, nav, footer, ads) so the AI
- * receives clean, focused markup with actual CSS class names intact.
+ * Strips ALL attributes except class, id and src (img) so that the
+ * DOM structure is much more compact — enabling us to fit far more
+ * meaningful markup within the character budget.
  */
-export function extractBodyHtml(rawHtml: string, maxChars = 15000): string {
+export function extractBodyHtml(rawHtml: string, maxChars = 20000): string {
   let clean = rawHtml
+    // Remove entire noise blocks
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<svg[\s\S]*?<\/svg>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    // Remove navigation, footer, header, sidebar (not useful for product data)
     .replace(/<(nav|footer|header|aside)[^>]*>[\s\S]*?<\/\1>/gi, '')
-    // Remove long data-* attribute values (JSON blobs, base64) but keep short ones (class hints)
-    .replace(/(\s+data-[a-z][a-z0-9-]*)="[^"]{100,}"/gi, '')
-    // Remove tracking event handlers
-    .replace(/\s+(onclick|onload|onmouseover|onmouseout|onfocus|onblur)="[^"]*"/gi, '')
+    // Strip ALL tag attributes, keeping only class, id (and src for img)
+    .replace(/<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^>]*)?)\s*\/?>/g, (_, tag: string, attrs: string) => {
+      if (!attrs || !attrs.trim()) return `<${tag}>`;
+      const classM = attrs.match(/\bclass="([^"]*)"/i);
+      const idM = attrs.match(/\bid="([^"]*)"/i);
+      const srcM = tag.toLowerCase() === 'img' ? attrs.match(/\bsrc="([^"]*)"/i) : null;
+      const keep: string[] = [];
+      if (classM) keep.push(`class="${classM[1]}"`);
+      if (idM) keep.push(`id="${idM[1]}"`);
+      if (srcM) keep.push(`src="${srcM[1]}"`);
+      return keep.length ? `<${tag} ${keep.join(' ')}>` : `<${tag}>`;
+    })
+    // Collapse whitespace
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/(\n\s*){3,}/g, '\n\n')
     .trim();
 
-  // Try to extract only the body
+  // Extract body content only
   const bodyMatch = clean.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   if (bodyMatch) clean = bodyMatch[1].trim();
 
@@ -66,10 +79,10 @@ export function extractBodyHtml(rawHtml: string, maxChars = 15000): string {
 
 export function buildGeneratePrompt(html: string): string {
   const cleanHtml = extractBodyHtml(html);
-  return `HTML:
+  return `HTML (extract CSS selectors, NOT the data values):
 ${cleanHtml}
 
-JSON:`;
+JSON (CSS selectors only):`;
 }
 
 export function buildUpdatePrompt(
