@@ -39,7 +39,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-crawler@2024}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5004}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://scraping.lofivora.space}
       NODE_ENV: production
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -53,7 +53,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:5003
+        NEXT_PUBLIC_API_URL: http://scrapingapi.lofivora.space
     container_name: crawler-ai-frontend
     restart: unless-stopped
     depends_on:
@@ -61,8 +61,8 @@ services:
     ports:
       - "5004:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5003
-      NEXTAUTH_URL: http://localhost:5004
+      NEXT_PUBLIC_API_URL: http://scrapingapi.lofivora.space
+      NEXTAUTH_URL: https://scraping.lofivora.space
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-crawler-ai-nextauth-secret-change-in-production}
 
 volumes:
