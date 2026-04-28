@@ -53,7 +53,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://scrapingapi.lofivora.space
+        NEXT_PUBLIC_API_URL: https://scrapingapi.lofivora.space
     container_name: crawler-ai-frontend
     restart: unless-stopped
     depends_on:
@@ -61,7 +61,7 @@ services:
     ports:
       - "5004:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://scrapingapi.lofivora.space
+      NEXT_PUBLIC_API_URL: https://scrapingapi.lofivora.space
       NEXTAUTH_URL: https://scraping.lofivora.space
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-crawler-ai-nextauth-secret-change-in-production}
 
