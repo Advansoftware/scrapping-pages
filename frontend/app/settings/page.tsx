@@ -34,7 +34,7 @@ const PROVIDERS = [
     id: "google",
     label: "Google (Gemini)",
     description: "Modelos Gemini. Rápido e com preços competitivos.",
-    models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-pro-exp-0205", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    models: ["gemini-3.1-pro", "gemini-3.1-flash", "gemini-3-pro", "gemini-3-flash", "gemini-2.5-pro"],
     keyPlaceholder: "AIzaSy...",
     needsBaseUrl: false,
     defaultBaseUrl: "",
